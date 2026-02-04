@@ -1,0 +1,17 @@
+name: poppunk
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.9
+  - poppunk
+  - pp-sketchlib
+  - graph-tool
+  - libopenblas
+  - pandas
+  - numpy
+  - matplotlib
+  - networkx
+  - scipy
+  - dendropy

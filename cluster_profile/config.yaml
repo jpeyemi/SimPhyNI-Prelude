@@ -1,0 +1,76 @@
+# === GENERAL EXECUTOR SETTINGS ===
+executor: slurm
+jobs: 100
+latency-wait: 120
+
+# === ENVIRONMENT MANAGEMENT ===
+use-conda: true
+conda-frontend: conda
+# Relative path ensures portability
+conda-prefix: .snakemake/conda 
+
+# === DEFAULT SLURM RESOURCES ===
+default-resources:
+  mem_mb: 4000
+  runtime: "02:00:00"
+  cpus_per_task: 1
+  # Empty by default so it works on any cluster. Add if needed
+  slurm_partition: ""
+  slurm_account: ""
+
+# === JOB SPECIFIC RESOURCES ===
+
+prokka:
+  runtime: "01:00:00"
+  mem_mb: 16000
+  cpus_per_task: 8
+
+panaroo:
+  runtime: "12:00:00"
+  mem_mb: 128000
+  cpus_per_task: 32
+
+poppunk_db_fit:
+  runtime: "24:00:00"
+  mem_mb: 128000
+  cpus_per_task: 64
+
+poppunk_tree:
+  runtime: "04:00:00"
+  mem_mb: 64000
+  cpus_per_task: 16
+
+raxml_ng:
+  runtime: "72:00:00"
+  mem_mb: 64000
+  cpus_per_task: 16
+
+create_poppunk_list:
+  runtime: "00:15:00"
+  mem_mb: 4000
+  cpus_per_task: 1
+
+to_faa:
+  runtime: "00:30:00"
+  mem_mb: 16000
+  cpus_per_task: 1
+
+pan_to_sim:
+  runtime: "00:30:00"
+  mem_mb: 16000
+  cpus_per_task: 1
+
+simphyni:
+  runtime: "12:00:00"
+  mem_mb: 64000
+  cpus_per_task: 64
+
+add_aa:
+  runtime: "01:00:00"
+  mem_mb: 32000
+  cpus_per_task: 1
+
+calc_genomic_distance:
+  runtime: "02:00:00"
+  mem_mb: 32000
+  cpus_per_task: 32

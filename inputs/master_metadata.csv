@@ -1,0 +1,4 @@
+sample_id,analysis_id,fasta_path
+SampleA,Analysis1,Path/to/SampleA.fasta
+SampleB,Analysis1,Path/to/SampleB.fasta
+SampleC,Analysis2,Path/to/SampleC.fasta

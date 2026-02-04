@@ -1,0 +1,8 @@
+name: raxml_env
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - raxml-ng
+  - modeltest-ng
