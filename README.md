@@ -27,7 +27,7 @@ This pipline takes genome assemblies (FASTA) as inputs then performs annotation 
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/fasta-to-simphyni.git
+git clone https://github.com/jpeyemi/SimPhyNI-Prelude.git
 cd simphyni-prelude
 
 ```
