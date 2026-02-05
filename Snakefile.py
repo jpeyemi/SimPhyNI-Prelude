@@ -12,7 +12,8 @@ TREE_METHOD = config.get("tree_method", "poppunk")
 
 # --- Load Metadata ---
 df = pd.read_csv("inputs/master_metadata.csv")
-# List all analyses names corresponding to entries in `master_metadata.csv`
+
+# Lists all analyses names corresponding to entries in `master_metadata.csv`
 ANALYSES = df['analysis_id'].unique().tolist() # If not all specify which analyses
  
 # --- Helper Functions ---
@@ -109,7 +110,7 @@ rule panaroo:
         aln = "results/{analysis}/panaroo_results/core_gene_alignment_filtered.aln" if TREE_METHOD == "raxml" else []
     params:
         # Dynamically add alignment flags only if needed
-        extra_args = "-a core --aligner mafft --core_threshold 0.90" if TREE_METHOD == "raxml" else ""
+        extra_args = "-a core --aligner mafft --core_threshold 0.95" if TREE_METHOD == "raxml" else ""
     conda: "envs/panaroo.yaml"
     threads: 32
     shell:
@@ -233,7 +234,7 @@ rule simphyni:
         r_flag = get_simphyni_r_flag
     conda: "envs/simphyni.yaml"
     shell:
-        "simphyni run -T {input.tree} -t {input.csv} -s {wildcards.analysis} {params.r_flag} --outdir results/{wildcards.analysis}/simphyni --no-prefilter"
+        "simphyni run -T {input.tree} -t {input.csv} -s {wildcards.analysis} {params.r_flag} --outdir results/{wildcards.analysis}/simphyni"
 
 rule add_aa:
     input:
