@@ -17,6 +17,8 @@ default-resources:
   # Empty by default so it works on any cluster. Add if needed
   slurm_partition: ""
   slurm_account: ""
+  slurm_extra: "'--output=logs/slurm/{rule}/{rule}_{jobid}.out --error=logs/slurm/{rule}/{rule}_{jobid}.err'"
+
 
 # === JOB SPECIFIC RESOURCES ===
 
