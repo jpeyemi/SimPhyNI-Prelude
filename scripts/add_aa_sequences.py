@@ -6,7 +6,7 @@ import sys
 # Inputs from Snakemake
 simphyni_csv = snakemake.input.sim_csv
 panaroo_faa = snakemake.input.faa
-ibd_ecoli_csv = snakemake.input.gene_piv
+gene_piv_csv = snakemake.input.gene_piv
 outfile = snakemake.output.outfile
 
 # --- Helper functions ---
@@ -42,15 +42,15 @@ def reformat_string_for_filepath(s):
     return re.sub(r'[^a-zA-Z0-9_.-]', '', s)
 
 # --- Load data ---
-print(f"📖 Loading data...")
-ibd_ecoli = pd.read_csv(ibd_ecoli_csv)
+print(f"Loading data...")
+gene_piv = pd.read_csv(gene_piv_csv)
 simphyni = pd.read_csv(simphyni_csv)
-ibd_sequences = read_fasta(panaroo_faa)
+aa_sequences = read_fasta(panaroo_faa)
 
 # --- Build Mapping ---
 # We create a lookup: {SanitizedName: OriginalName}
 # Note: If two different genes sanitize to the same name, this picks the first one.
-name_lookup = {reformat_string_for_filepath(c): c for c in ibd_ecoli.columns}
+name_lookup = {reformat_string_for_filepath(c): c for c in gene_piv.columns}
 
 # --- Apply Mapping ---
 
@@ -64,7 +64,7 @@ simphyni["mapping_status_T2"] = simphyni["T2_original_name"].apply(lambda x: "mi
 def get_sequence(name):
     if pd.isna(name):
         return "no_sequence_found"
-    return ibd_sequences.get(name, "no_sequence_found")
+    return aa_sequences.get(name, "no_sequence_found")
 
 simphyni["T1_aa_sequence"] = simphyni["T1_original_name"].apply(get_sequence)
 simphyni["T2_aa_sequence"] = simphyni["T2_original_name"].apply(get_sequence)

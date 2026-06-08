@@ -207,7 +207,7 @@ For questions, please open an issue or contact Ishaq Balogun at https://github.c
 
 If you use this pipeline, please cite the underlying tools:
 
-* **SimPhyNI:** [Balogun I. (2025)](https://www.google.com/search?q=https://github.com/viba1/SimPhyNI)
+* **SimPhyNI:** [Balogun I. (2025)](https://github.com/jpeyemi/SimPhyNI)
 * **Prokka:** [Seemann T. (2014)](https://doi.org/10.1093/bioinformatics/btu153)
 * **Panaroo:** [Tonkin-Hill G, et al. (2020)](https://doi.org/10.1186/s13059-020-02090-4)
 * **RAxML-NG:** [Kozlov AM, et al. (2019)](https://doi.org/10.1093/bioinformatics/btz305)

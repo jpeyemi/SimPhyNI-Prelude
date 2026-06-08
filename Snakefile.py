@@ -10,6 +10,9 @@ import os
 # You can override this via command line: snakemake --config tree_method=raxml
 TREE_METHOD = config.get("tree_method", "poppunk")
 
+# Set to False to skip genomic distance calculation: --config calc_distances=False
+CALC_DISTANCES = config.get("calc_distances", True)
+
 # --- Load Metadata ---
 df = pd.read_csv("inputs/master_metadata.csv")
 
@@ -75,8 +78,8 @@ rule all:
     input:
         expand("results/{analysis}/simphyni/{analysis}/results_AA.csv", analysis=ANALYSES),
 
-        # for genomic distances between pairs if wanted
-        expand("results/{analysis}/simphyni/{analysis}/distances.csv", analysis=ANALYSES),
+        # for genomic distances between pairs — skip with --config calc_distances=False
+        expand("results/{analysis}/simphyni/{analysis}/distances.csv", analysis=ANALYSES) if CALC_DISTANCES else [],
 
 # --- Prokka ---
 rule prokka:
@@ -88,11 +91,12 @@ rule prokka:
     params:
         outdir = "results/{analysis}/prokka/{sample}",
         prefix = "{sample}"
+    log: "logs/{analysis}/prokka_{sample}.log"
     conda: "envs/prokka.yaml"
     threads: 8
     shell:
         "rm -rf {params.outdir} && "
-        "prokka --outdir {params.outdir} --prefix {params.prefix} --cpus {threads} {input}"
+        "prokka --outdir {params.outdir} --prefix {params.prefix} --cpus {threads} {input} > {log} 2>&1"
 
 # --- Panaroo (Conditional Alignment) ---
 rule panaroo:
@@ -111,16 +115,18 @@ rule panaroo:
     params:
         # Dynamically add alignment flags only if needed
         extra_args = "-a core --aligner mafft --core_threshold 0.95" if TREE_METHOD == "raxml" else ""
+    log: "logs/{analysis}/panaroo.log"
     conda: "envs/panaroo.yaml"
     threads: 32
     shell:
-        "panaroo -i {input.gffs} -o {output.folder} -t {threads} --clean-mode strict --merge_paralogs --remove-invalid-genes {params.extra_args}"
+        "panaroo -i {input.gffs} -o {output.folder} -t {threads} --clean-mode strict --merge_paralogs --remove-invalid-genes {params.extra_args} > {log} 2>&1"
 
 rule to_faa:
     input: "results/{analysis}/panaroo_results/pan_genome_reference.fa"
     output: "results/{analysis}/panaroo_results/pan_genome_reference.faa"
+    log: "logs/{analysis}/to_faa.log"
     conda: "envs/panaroo.yaml"
-    shell: "python scripts/fa_to_faa.py {input} {output}"
+    shell: "python scripts/fa_to_faa.py {input} {output} > {log} 2>&1"
 
 # --- RAxML-NG ---
 rule raxml_ng:
@@ -131,11 +137,13 @@ rule raxml_ng:
     params:
         prefix = "results/{analysis}/raxml/{analysis}",
         dir = "results/{analysis}/raxml"
-    conda: "envs/raxml.yaml" 
+    log: "logs/{analysis}/raxml_ng.log"
+    conda: "envs/raxml.yaml"
+    threads: 16
     shell:
         """
         mkdir -p {params.dir}
-        raxml-ng --msa {input.aln} --model GTR+G --prefix {params.prefix} --threads {threads} --seed 12345
+        raxml-ng --msa {input.aln} --model GTR+G --prefix {params.prefix} --threads {threads} --seed 12345 > {log} 2>&1
         """
 
 # --- PopPUNK ---
@@ -160,13 +168,14 @@ rule poppunk_db_fit:
     threads: 64
     resources:
         mem_mb = 32000 # Increased memory for large sketches
+    log: "logs/{analysis}/poppunk_db_fit.log"
     conda: "envs/poppunk.yaml"
     shell:
         """
         rm -rf {output.db} {output.model}
         mkdir -p results/{wildcards.analysis}/poppunk
-        poppunk --create-db --r-files {input.r_files} --output {output.db} --threads {threads} --no-plot
-        poppunk --fit-model dbscan --ref-db {output.db} --output {output.model} --threads {threads}
+        poppunk --create-db --r-files {input.r_files} --output {output.db} --threads {threads} --no-plot > {log} 2>&1
+        poppunk --fit-model dbscan --ref-db {output.db} --output {output.model} --threads {threads} >> {log} 2>&1
         """
 
 rule poppunk_tree:
@@ -175,6 +184,7 @@ rule poppunk_tree:
         model = "results/{analysis}/poppunk/model"
     output:
         tree = "results/{analysis}/poppunk_tree/poppunk_tree_core_NJ.nwk"
+    log: "logs/{analysis}/poppunk_tree.log"
     conda: "envs/poppunk.yaml"
     threads: 16
     resources:
@@ -187,25 +197,24 @@ rule poppunk_tree:
             --output results/{wildcards.analysis}/poppunk_tree \
             --tree nj \
             --threads {threads} \
-            --microreact
+            --microreact > {log} 2>&1
         """
 
 # --- Add the Midpoint Rooting Rule ---
 rule midpoint_root:
     input:
         # This dynamic input allows the rule to work for both RAxML and PopPUNK
-        tree = (f"results/{{analysis}}/raxml/{{analysis}}.raxml.bestTree" 
-                if TREE_METHOD == "raxml" else 
+        tree = (f"results/{{analysis}}/raxml/{{analysis}}.raxml.bestTree"
+                if TREE_METHOD == "raxml" else
                 f"results/{{analysis}}/poppunk_tree/poppunk_tree_core_NJ.nwk")
     output:
         rooted = (f"results/{{analysis}}/raxml/{{analysis}}_rooted.nwk"
-                  if TREE_METHOD == "raxml" else 
+                  if TREE_METHOD == "raxml" else
                   f"results/{{analysis}}/poppunk_tree/{{analysis}}_rooted.nwk")
-    run:
-        from Bio import Phylo
-        tree = Phylo.read(input.tree, "newick")
-        tree.root_at_midpoint()
-        Phylo.write(tree, output.rooted, "newick")
+    log: "logs/{analysis}/midpoint_root.log"
+    conda: "envs/panaroo.yaml"
+    script:
+        "scripts/midpoint_root.py"
 
 # --- SimPhyNI Prep & Execution ---
 
@@ -217,12 +226,13 @@ rule pan_to_sim:
         piv = "results/{analysis}/simphyni/gene_piv.csv"
     params:
         pheno_arg = lambda wildcards, input: f"--pheno {input.pheno_file}" if input.pheno_file else ""
+    log: "logs/{analysis}/pan_to_sim.log"
     conda: "envs/panaroo.yaml"
     shell:
         "python scripts/panaroo_to_simphyni.py "
         "--panaroo {input.pan_csv} "
         "{params.pheno_arg} "
-        "--output {output.piv}"
+        "--output {output.piv} > {log} 2>&1"
 
 rule simphyni:
     input:
@@ -232,9 +242,11 @@ rule simphyni:
         "results/{analysis}/simphyni/{analysis}/simphyni_results.csv"
     params:
         r_flag = get_simphyni_r_flag
+    log: "logs/{analysis}/simphyni.log"
     conda: "envs/simphyni.yaml"
+    threads: 64
     shell:
-        "simphyni run -T {input.tree} -t {input.csv} -s {wildcards.analysis} {params.r_flag} --outdir results/{wildcards.analysis}/simphyni"
+        "simphyni run -T {input.tree} -t {input.csv} -s {wildcards.analysis} {params.r_flag} --outdir results/{wildcards.analysis}/simphyni > {log} 2>&1"
 
 rule add_aa:
     input:
@@ -243,6 +255,7 @@ rule add_aa:
         gene_piv = "results/{analysis}/simphyni/gene_piv.csv"
     output:
         outfile = "results/{analysis}/simphyni/{analysis}/results_AA.csv"
+    log: "logs/{analysis}/add_aa.log"
     conda: "envs/panaroo.yaml"
     script:
         "scripts/add_aa_sequences.py"
@@ -254,11 +267,15 @@ rule calc_genomic_distance:
     output:
         outfile = "results/{analysis}/simphyni/{analysis}/distances.csv"
     params:
-        gff_dir = "results/{analysis}/prokka"
+        gff_dir = "results/{analysis}/prokka",
+        pval_col = config.get("dist_pval_col", "pval_bh"),
+        alpha = config.get("dist_alpha", 0.05)
+    log: "logs/{analysis}/calc_genomic_distance.log"
     threads: 32
-    conda: "envs/panaroo.yaml",
+    conda: "envs/panaroo.yaml"
     shell:
-        "python -u scripts/cluster_distance_summary.py {input.sim_csv} {input.panaroo} {params.gff_dir} {output.outfile} --threads {threads}"
+        "python -u scripts/cluster_distance_summary.py {input.sim_csv} {input.panaroo} {params.gff_dir} {output.outfile} "
+        "--threads {threads} --pval-col {params.pval_col} --alpha {params.alpha} > {log} 2>&1"
 
 
 

@@ -15,7 +15,6 @@ snakemake --snakefile Snakefile.py \
 	--printshellcmds \
 	--rerun-triggers mtime \
 	--profile cluster_profile \
-	--dry-run \
 	--config tree_method=poppunk
 
 echo Done!!!

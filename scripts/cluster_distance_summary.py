@@ -1,15 +1,20 @@
 import os
 import csv
-import glob
 import argparse
 from collections import defaultdict
 import pandas as pd
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
-# from tqdm import tqdm
 
 import re
 id_pattern = re.compile(r'ID=([^;]+)')
+
+PANAROO_METADATA_COLS = {
+    'Non-unique Gene name', 'Annotation', 'No. isolates',
+    'No. sequences', 'Avg sequences per isolate', 'Genome Fragment',
+    'Order within Fragment', 'Accessory Fragment', 'Accessory Order with Fragment',
+    'QC', 'Min group size nuc', 'Max group size nuc', 'Avg group size nuc'
+}
 
 def parse_gff(filepath):
     gene_positions = {}
@@ -61,8 +66,9 @@ def load_cluster_pairs(pair_file, col1, col2, pval_col='pval_bh',alpha = 0.05):
 
 def prepare_presence_maps(presence_df):
     """Return a dict of genome -> {cluster: gene_id}"""
+    sample_cols = [c for c in presence_df.columns if c not in PANAROO_METADATA_COLS]
     presence_maps = {}
-    for genome in presence_df.columns[3:]:
+    for genome in sample_cols:
         presence_maps[genome] = presence_df[genome].dropna().to_dict()
     return presence_maps
 
@@ -126,8 +132,8 @@ def summarize_and_write(distances, output_csv):
                 writer.writerow([geneA, geneB, np.nan, np.nan, np.nan, 0, len(dists)])
 
 
-def main(simphyni_file, presence_absence_file, gff_dir, output_csv, num_workers):
-    cluster_pairs = load_cluster_pairs(simphyni_file, "T1_original_name","T2_original_name",'pval_bh',0.05)
+def main(simphyni_file, presence_absence_file, gff_dir, output_csv, num_workers, pval_col, alpha):
+    cluster_pairs = load_cluster_pairs(simphyni_file, "T1_original_name", "T2_original_name", pval_col, alpha)
     presence_df = pd.read_csv(presence_absence_file, dtype=str)
     if presence_df.index.name != 'Gene':
         presence_df.set_index('Gene', inplace=True)
@@ -160,7 +166,9 @@ if __name__ == "__main__":
     parser.add_argument("gff_dir", help="Directory containing GFF files")
     parser.add_argument("output_csv", help="Output CSV file path")
     parser.add_argument("--threads", type=int, default=16, help="Number of parallel workers (default: 16)")
+    parser.add_argument("--pval-col", default="pval_bh", help="P-value column to filter on (default: pval_bh)")
+    parser.add_argument("--alpha", type=float, default=0.05, help="Significance threshold (default: 0.05)")
     args = parser.parse_args()
 
-    main(args.simphyni_file, args.presence_absence_file, args.gff_dir, args.output_csv, args.threads)
+    main(args.simphyni_file, args.presence_absence_file, args.gff_dir, args.output_csv, args.threads, args.pval_col, args.alpha)
     
