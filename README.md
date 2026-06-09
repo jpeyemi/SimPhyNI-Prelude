@@ -2,7 +2,7 @@
 
 A Snakemake workflow to run **SimPhyNI** starting from genome assemblies (FASTA).
 
-This pipline takes genome assemblies (FASTA) as inputs then performs annotation (Prokka), pangenome inference (Panaroo), and phylogenetic tree construction (PopPUNK or RAxML) to prepare the necessary inputs for SimPhyNI.
+This pipline takes genome assemblies (FASTA) as inputs then performs annotation (Bakta), pangenome inference (Panaroo), and phylogenetic tree construction (PopPUNK or RAxML) to prepare the necessary inputs for SimPhyNI.
 
 > **Note:** This is a wrapper pipeline. For documentation on the core tool and interpreting results, please visit the **[SimPhyNI GitHub Repository](https://github.com/jpeyemi/SimPhyNI)**.
 
@@ -10,7 +10,7 @@ This pipline takes genome assemblies (FASTA) as inputs then performs annotation 
 
 ## Workflow Overview
 
-1. **Annotation:** Annotates FASTA files using `Prokka`.
+1. **Annotation:** Annotates FASTA files using `Bakta`.
 2. **Pangenome:** Generates a pangenome and core-gene alignment using `Panaroo`.
 3. **Phylogeny:** Builds a rooted phylogenetic tree using either:
 * **PopPUNK** (Fast, NJ tree based on core distances)
@@ -36,6 +36,28 @@ cd simphyni-prelude
 
 You need **Conda** and **Snakemake v9.16** installed. Additionally, because this pipeline performs some lightweight Python operations on the head node, your base environment must include `pandas` and `biopython`.
 
+### 3. Bakta Database Setup
+
+Bakta requires a reference database for annotation. You have two options:
+
+**Option A — Use a shared HPC database (recommended for cluster users)**
+
+If your institution already provides a Bakta database, pass its path at runtime:
+
+```bash
+snakemake --config bakta_db=/shared/databases/bakta/db ...
+```
+
+**Option B — Download locally (first-time / local users)**
+
+Run the following once to download the light database (~1.5 GB) into `resources/bakta_db/`:
+
+```bash
+snakemake bakta_db_download --use-conda --cores 1
+```
+
+The pipeline defaults to `resources/bakta_db/db-light` if `bakta_db` is not set in the config.
+
 
 #### Option 1: Lightweight Launcher (Recommended)
 
@@ -49,6 +71,8 @@ conda activate simphyni_prelude
 
 ```
 
+> **Note:** The numbered sections below apply to runtime dependencies. The Bakta database setup (section 3 above) is an additional one-time prerequisite.
+
 #### Option 2: Use the Full SimPhyNI Environment
 
 If you have already installed the core **SimPhyNI** package, you can simply activate that environment, as it includes the necessary dependencies.
@@ -61,7 +85,7 @@ conda activate simphyni
 
 ```
 
-*All other heavy dependencies (Prokka, Panaroo, RAxML) are handled automatically by Snakemake via Conda environments.*
+*All other heavy dependencies (Bakta, Panaroo, RAxML) are handled automatically by Snakemake via Conda environments.*
 
 ---
 
@@ -173,7 +197,7 @@ Results are organized by `analysis_id` inside the `results/` folder.
 ```text
 results/
 ├── {analysis_id}/
-│   ├── prokka/               # Prokka annotations per sample
+│   ├── bakta/                # Bakta annotations per sample
 │   ├── panaroo_results/      # Panaroo graph and pangenome files
 │   ├── poppunk/              # (If selected) PopPUNK db and model
 │   ├── poppunk_tree/         # (If selected) Rooted NJ tree
@@ -192,6 +216,7 @@ results/
 
 * **Biopython Error:** If you see `ModuleNotFoundError: No module named 'Bio'`, ensure you installed `biopython` in your active conda environment (see Installation section).
 * **Missing Inputs:** Ensure `inputs/master_metadata.csv` exists and paths in the `fasta_path` column are absolute, not relative.
+* **Bakta Database Not Found:** If Bakta fails with a database error, either run `snakemake bakta_db_download` or pass the correct path via `--config bakta_db=/path/to/db`.
 * **Cluster Timeouts:** If jobs fail due to time limits, edit `cluster_profile/config.yaml` to increase the `runtime` for the specific rule (e.g., `raxml_ng`).
     * Note that `raxml_ng` specifically has builtin checkpointing so it will pick up where it left off
 
@@ -208,7 +233,7 @@ For questions, please open an issue or contact Ishaq Balogun at https://github.c
 If you use this pipeline, please cite the underlying tools:
 
 * **SimPhyNI:** [Balogun I. (2025)](https://github.com/jpeyemi/SimPhyNI)
-* **Prokka:** [Seemann T. (2014)](https://doi.org/10.1093/bioinformatics/btu153)
+* **Bakta:** [Schwengers O, et al. (2021)](https://doi.org/10.1099/mgen.0.000685)
 * **Panaroo:** [Tonkin-Hill G, et al. (2020)](https://doi.org/10.1186/s13059-020-02090-4)
 * **RAxML-NG:** [Kozlov AM, et al. (2019)](https://doi.org/10.1093/bioinformatics/btz305)
 * **PopPUNK:** [Lees JA, et al. (2019)](https://doi.org/10.1101/gr.241455.118)

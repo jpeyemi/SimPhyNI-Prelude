@@ -13,6 +13,13 @@ TREE_METHOD = config.get("tree_method", "poppunk")
 # Set to False to skip genomic distance calculation: --config calc_distances=False
 CALC_DISTANCES = config.get("calc_distances", True)
 
+# Path to Bakta annotation database.
+# Option 1 — point to an existing shared DB on your HPC:
+#   snakemake --config bakta_db=/shared/databases/bakta/db
+# Option 2 — download the light DB locally first by running:
+#   snakemake bakta_db_download
+BAKTA_DB = config.get("bakta_db", "resources/bakta_db/db-light")
+
 # --- Load Metadata ---
 df = pd.read_csv("inputs/master_metadata.csv")
 
@@ -81,28 +88,37 @@ rule all:
         # for genomic distances between pairs — skip with --config calc_distances=False
         expand("results/{analysis}/simphyni/{analysis}/distances.csv", analysis=ANALYSES) if CALC_DISTANCES else [],
 
-# --- Prokka ---
-rule prokka:
+# --- Bakta ---
+rule bakta:
     input:
         get_fasta
     output:
-        gff = "results/{analysis}/prokka/{sample}/{sample}.gff",
-        faa = "results/{analysis}/prokka/{sample}/{sample}.faa"
+        gff = "results/{analysis}/bakta/{sample}/{sample}.gff3",
+        faa = "results/{analysis}/bakta/{sample}/{sample}.faa"
     params:
-        outdir = "results/{analysis}/prokka/{sample}",
-        prefix = "{sample}"
-    log: "logs/{analysis}/prokka_{sample}.log"
-    conda: "envs/prokka.yaml"
+        outdir = "results/{analysis}/bakta/{sample}",
+        prefix = "{sample}",
+        db = BAKTA_DB
+    log: "logs/{analysis}/bakta_{sample}.log"
+    conda: "envs/bakta.yaml"
     threads: 8
     shell:
-        "rm -rf {params.outdir} && "
-        "prokka --outdir {params.outdir} --prefix {params.prefix} --cpus {threads} {input} > {log} 2>&1"
+        "bakta --db {params.db} --output {params.outdir} --prefix {params.prefix} "
+        "--threads {threads} --force {input} > {log} 2>&1"
+
+rule bakta_db_download:
+    output:
+        db = directory("resources/bakta_db/db-light")
+    log: "logs/bakta_db_download.log"
+    conda: "envs/bakta.yaml"
+    shell:
+        "bakta_db download --output resources/bakta_db --type light > {log} 2>&1"
 
 # --- Panaroo (Conditional Alignment) ---
 rule panaroo:
     input:
         gffs = lambda wildcards: expand(
-            "results/{analysis}/prokka/{sample}/{sample}.gff",
+            "results/{analysis}/bakta/{sample}/{sample}.gff3",
             analysis=wildcards.analysis,
             sample=get_samples_by_analysis(wildcards.analysis)
         )
@@ -267,7 +283,7 @@ rule calc_genomic_distance:
     output:
         outfile = "results/{analysis}/simphyni/{analysis}/distances.csv"
     params:
-        gff_dir = "results/{analysis}/prokka",
+        gff_dir = "results/{analysis}/bakta",
         pval_col = config.get("dist_pval_col", "pval_bh"),
         alpha = config.get("dist_alpha", 0.05)
     log: "logs/{analysis}/calc_genomic_distance.log"

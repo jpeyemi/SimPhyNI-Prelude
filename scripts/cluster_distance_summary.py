@@ -140,7 +140,7 @@ def main(simphyni_file, presence_absence_file, gff_dir, output_csv, num_workers,
 
     presence_maps = prepare_presence_maps(presence_df)
     genome_names = list(presence_maps.keys())
-    gff_files = [os.path.join(gff_dir, genome, f"{genome}.gff") for genome in genome_names]
+    gff_files = [os.path.join(gff_dir, genome, f"{genome}.gff3") for genome in genome_names]
 
     results = []
     with ProcessPoolExecutor(max_workers=num_workers) as pool:

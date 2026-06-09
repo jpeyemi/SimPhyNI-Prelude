@@ -15,6 +15,6 @@ snakemake --snakefile Snakefile.py \
 	--printshellcmds \
 	--rerun-triggers mtime \
 	--profile cluster_profile \
-	--config tree_method=poppunk
+	--config tree_method=poppunk bakta_db=/path/to/bakta_db  # edit bakta_db
 
 echo Done!!!
